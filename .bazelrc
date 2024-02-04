@@ -1,2 +1,7 @@
 build --cxxopt='-Wpedantic'
 build --cxxopt='-Werror'
+build --cxxopt='-std=c++20'
+
+
+build:clang --cxxopt='-Werror=inconsistent-missing-override'
+build:clang --cxxopt='-Werror=delete-abstract-non-virtual-dtor'
