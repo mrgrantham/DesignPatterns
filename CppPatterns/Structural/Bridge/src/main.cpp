@@ -4,6 +4,11 @@
 
 /** Bridge pattern helps solve the exploding class heirarchy problem
  * by switching from inheritance to object composition
+ * 
+ * This example is still a little confusion the solution still
+ * seems similarly complex to the original but perhaps
+ * there is more opportunity for slower growth when adding additional
+ * share and text mechanisms
  */
 int main(int argc, char **argv) {
   std::cout << "Bridge Pattern Example" << std::endl;
