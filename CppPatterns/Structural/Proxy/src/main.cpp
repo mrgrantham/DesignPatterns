@@ -23,7 +23,11 @@ int main(int argc, char **argv) {
 
   std::cout << "Proxy Pattern Example" << std::endl;
 
-  /** No Proxy Example */
+  /** No Proxy Example 
+   * Here if useSettings is set to false, the RealConfigFile class
+   * which could potentially be large and heavyweight, will be 
+   * instantiated regardless.
+  */
   RealConfigFile configFile(exampleFilePath);
 
   bool useSettings = true;
@@ -53,7 +57,7 @@ int main(int argc, char **argv) {
   }
 
   // Clean up sample file
-  // std::remove(exampleFilePath.c_str());
+  std::remove(exampleFilePath.c_str());
 
   /** Protective Proxy Example
    * This example hides a secure storage instance
