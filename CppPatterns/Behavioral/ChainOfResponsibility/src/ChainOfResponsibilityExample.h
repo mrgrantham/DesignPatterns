@@ -1,87 +1,104 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
-class ConfigFile {
+class StringValidator {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual ~StringValidator() {}
+  virtual StringValidator *setNext(StringValidator *nextValidator) = 0;
+  virtual std::string validate(std::string) = 0;
 };
 
-class RealConfigFile : public ConfigFile {
+// Defines functionality that all validators will have in common
+class BaseValidator : public StringValidator {
+protected:
+  StringValidator *next = nullptr;
+
 public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
-
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
+  virtual ~BaseValidator() { delete next; }
+  StringValidator *setNext(StringValidator *nextValidator) override {
+    next = nextValidator;
+    return nextValidator;
   }
-  std::vector<std::string> getSettings() { return settings_; }
+  std::string validate(std::string testString) override {
+    if (this->next) {
+      return this->next->validate(testString);
+    }
+    return "Success!";
+  }
+};
 
+class NotEmptyValidator : public BaseValidator {
+public:
+  NotEmptyValidator() {}
+  std::string validate(std::string testString) override {
+    puts("Checking if empty...");
+
+    if (testString.empty()) {
+      return "Please enter a value.";
+    }
+    return BaseValidator::validate(testString);
+  }
+};
+
+class LengthValidator : public BaseValidator {
 private:
-  std::vector<std::string> settings_;
-};
-
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+  int minLength_;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
-  }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
+  LengthValidator(int minLength) : minLength_(minLength) {}
+  std::string validate(std::string testString) override {
+    puts("Checking string length...");
+
+    if (testString.length() < minLength_) {
+      return "Please enter a value longer than " + std::to_string(minLength_);
     }
-    return realConfigFile_->getSettings();
+    return BaseValidator::validate(testString);
   }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
+class RegexValidator : public BaseValidator {
+private:
+  std::string patternName_;
+  std::string regexString_;
 
-};
+public:
+  RegexValidator(std::string patternName, std::string regexString)
+      : patternName_(patternName), regexString_(regexString) {}
+  std::string validate(std::string testString) override {
+    puts("Checking regex match...");
 
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
-  }
-
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
-
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
+    if (!std::regex_match(testString, std::regex(regexString_))) {
+      return "The value entered does not match the proper format for a " +
+             patternName_;
     }
-    return "invalid passcode";
+    return BaseValidator::validate(testString);
   }
+};
 
+template <typename CollectionType, typename ItemType>
+static bool CollectionDoesContainItem(CollectionType collection,
+                                      ItemType item) {
+  return std::find(collection.begin(), collection.end(), item) !=
+         collection.end();
+}
+
+class HistoryValidator : public BaseValidator {
+private:
+  std::vector<std::string> historyItems_;
+
+public:
+  HistoryValidator(std::vector<std::string> historyItems)
+      : historyItems_(historyItems) {}
+  std::string validate(std::string testString) override {
+    puts("Checking if string has been used before...");
+
+    if (CollectionDoesContainItem(historyItems_, testString)) {
+      return "Please enter a value that you haven't entered before";
+    }
+    return BaseValidator::validate(testString);
+  }
 };
