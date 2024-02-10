@@ -4,84 +4,115 @@
 #include <string>
 #include <vector>
 
-class ConfigFile {
+namespace Refactor {
+class Mediator {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual void mediate(const std::string &event) = 0;
+  virtual ~Mediator(){};
 };
 
-class RealConfigFile : public ConfigFile {
+class InterfaceElement {
+protected:
+  std::string name_;
+  bool isVisible_;
+  Mediator *mediator_;
+
 public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
+  InterfaceElement(const std::string &name, bool isVisible, Mediator *mediator)
+      : name_(name), isVisible_(isVisible), mediator_(mediator) {}
+  void setVisibility(bool isVisible) { this->isVisible_ = isVisible; }
 
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
+  std::string getDescription() {
+    return isVisible_ ? name_ + " is visible" : name_ + " is NOT visible";
   }
-  std::vector<std::string> getSettings() { return settings_; }
+};
+class ButtonElement : public InterfaceElement {
+public:
+  ButtonElement(const std::string &name, bool isVisible, Mediator *mediator)
+      : InterfaceElement(name, isVisible, mediator) {}
+  virtual ~ButtonElement() {}
+  void click() { mediator_->mediate(name_ + " clicked"); };
+};
 
+class TextBox : public InterfaceElement {
+  std::string textValue_ = "";
+
+public:
+  TextBox(const std::string &name, bool isVisible, Mediator *mediator)
+      : InterfaceElement(name, isVisible, mediator) {}
+  virtual ~TextBox() {}
+  virtual void changeText(const std::string &newValue) {
+    textValue_ = newValue;
+    if (newValue.empty()) {
+      mediator_->mediate(name_ + " empty");
+    } else {
+      mediator_->mediate(name_ + " not empty");
+    }
+  }
+};
+
+class CheckBox : public InterfaceElement {
 private:
-  std::vector<std::string> settings_;
-};
-
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+  bool isChecked_;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
-  }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
+  CheckBox(const std::string &name, bool isVisible, Mediator *mediator)
+      : InterfaceElement(name, isVisible, mediator) {}
+  virtual ~CheckBox() {}
+  virtual void setIsChecked(bool isChecked) {
+    isChecked_ = isChecked;
+    if (isChecked) {
+      mediator_->mediate(name_ + " is checked");
+    } else {
+      mediator_->mediate(name_ + " is unchecked");
     }
-    return realConfigFile_->getSettings();
   }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
+class UserInterface : public Mediator {
+private:
+  TextBox *nameTextBox_;
+  CheckBox *isMarriedCheckbox_;
+  TextBox *spousesNameTextBox_;
+  ButtonElement *submitButton_;
 
-};
-
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
+public:
+  UserInterface() {
+    nameTextBox_ = new TextBox("Name textbox", true, this);
+    isMarriedCheckbox_ = new CheckBox("Is married checkbox", true, this);
+    spousesNameTextBox_ = new TextBox("Spouse's name checkbox", false, this);
+    submitButton_ = new ButtonElement("Submit button", false, this);
   }
 
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
+  TextBox *getNameTextBox() { return nameTextBox_; }
+  CheckBox *getIsMarriedCheckbox() { return isMarriedCheckbox_; }
+  TextBox *getSpouseNameTextBox() { return spousesNameTextBox_; }
+  ButtonElement *getSubmitButton() { return submitButton_; }
 
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
+  ~UserInterface() {
+    delete nameTextBox_;
+    delete isMarriedCheckbox_;
+    delete spousesNameTextBox_;
+    delete submitButton_;
   }
 
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
+  void mediate(const std::string &event) override {
+    std::cout << "Mediating event: " << event << "...\n";
+
+    if (event == "Name textbox is empty") {
+      submitButton_->setVisibility(false);
+    } else if (event == "Name textbox is not empty") {
+      submitButton_->setVisibility(true);
+    } else if (event == "Is married checkbox is checked") {
+      spousesNameTextBox_->setVisibility(true);
+    } else if (event == "Is married checkbox is unchecked") {
+      spousesNameTextBox_->setVisibility(false);
+    } else if (event == "Submit button clicked") {
+      std::cout << "Submitted!\n";
+    } else {
+      std::cout << "unrecognized event\n";
     }
-    return "invalid passcode";
   }
-
 };
+
+} // namespace Refactor
