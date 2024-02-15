@@ -1,87 +1,62 @@
-#include <fstream>
+#pragma once
+
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
-class ConfigFile {
+class Subscriber {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual ~Subscriber() {}
+  virtual void notify(const std::string &publisherName,
+                      const std::string &message) = 0;
+  virtual std::string getName() = 0;
 };
 
-class RealConfigFile : public ConfigFile {
+class Publisher {
 public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
+  virtual ~Publisher() {}
+  virtual void subscribe(Subscriber *subscriber) = 0;
+  virtual void unsubscribe(Subscriber *subscriber) = 0;
+  virtual void publish(const std::string &message) = 0;
+};
 
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
-  }
-  std::vector<std::string> getSettings() { return settings_; }
-
+class ChatGroup : public Publisher {
 private:
-  std::vector<std::string> settings_;
-};
-
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+  std::string groupName_;
+  std::vector<Subscriber *> subscribers;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
+  ChatGroup(const std::string &name) : groupName_(name) {}
+  void subscribe(Subscriber *subscriber) override {
+    this->subscribers.push_back(subscriber);
   }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
+
+  void unsubscribe(Subscriber *subscriber) override {
+
+    this->subscribers.erase(
+        std::remove_if(subscribers.begin(), subscribers.end(),
+                       [subscriber](Subscriber *s) -> bool {
+                         return subscriber->getName() == s->getName();
+                       }),
+        subscribers.end());
+  }
+
+  void publish(const std::string &messge) override {
+    for (auto subscriber : subscribers) {
+      subscriber->notify(groupName_, messge);
     }
-    return realConfigFile_->getSettings();
   }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
+class ChatUser : public Subscriber {
+private:
+  std::string userName_;
 
-};
-
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
+public:
+  ChatUser(const std::string &userName) : userName_(userName) {}
+  void notify(const std::string &publisherName,
+              const std::string &message) override {
+    std::cout << userName_ << " received a new message from " << publisherName
+              << ": " << message << std::endl;
   }
 
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
-
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
-    }
-    return "invalid passcode";
-  }
-
+  std::string getName() override { return userName_; }
 };
