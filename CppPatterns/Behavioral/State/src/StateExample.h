@@ -1,87 +1,73 @@
-#include <fstream>
+#pragma once
+
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
-class ConfigFile {
+namespace Refactor {
+class State {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual std::string getDescription() const = 0;
+  virtual State *getNextState() = 0;
 };
 
-class RealConfigFile : public ConfigFile {
-public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
-
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
-  }
-  std::vector<std::string> getSettings() { return settings_; }
-
-private:
-  std::vector<std::string> settings_;
-};
-
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+class PurchasedState : public State {
+  State *nextState_ = nullptr;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
+  PurchasedState(State *nextState) : nextState_(nextState) {}
+  std::string getDescription() const override {
+    return "Current State: PURCHASED";
   }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
+  State *getNextState() override { return nextState_; }
+};
+
+class InTransitState : public State {
+  State *nextState_ = nullptr;
+
+public:
+  InTransitState(State *nextState) : nextState_(nextState) {}
+  std::string getDescription() const override {
+    return "Current State: IN_TRANSIT";
+  }
+  State *getNextState() override { return nextState_; }
+};
+
+class DeliveredState : public State {
+  State *nextState_ = nullptr;
+
+public:
+  DeliveredState(State *nextState) : nextState_(nextState) {}
+  std::string getDescription() const override {
+    return "Current State: DELIVERED";
+  }
+  State *getNextState() override { return nextState_; }
+};
+
+class Purchase {
+  std::string productName_;
+  State *currentState_;
+
+public:
+  Purchase(const std::string &productName, State *initialState)
+      : productName_(productName), currentState_(initialState) {}
+
+  std::string getDescription() const {
+    if (!currentState_) {
+      return "no state available to describe";
     }
-    return realConfigFile_->getSettings();
-  }
-};
-
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
-
-};
-
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
+    return productName_ + " - " + currentState_->getDescription();
   }
 
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
+  void goToNextState() {
+    if (!currentState_)
+      return;
 
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
+    if (auto nextState = currentState_->getNextState()) {
+      currentState_ = nextState;
+    } else {
+      currentState_ = nullptr;
+      std::cout << "No more states!" << std::endl;
     }
-    return "invalid passcode";
   }
-
 };
+
+} // namespace Refactor
