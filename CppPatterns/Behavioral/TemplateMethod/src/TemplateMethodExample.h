@@ -1,87 +1,35 @@
-#include <fstream>
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
-class ConfigFile {
-public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
-};
-
-class RealConfigFile : public ConfigFile {
-public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
-
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
+class GreetingCardTemplate {
+protected:
+  virtual std::string intro(const std::string &to) {
+    return "Dear " + to + ",\n";
   }
-  std::vector<std::string> getSettings() { return settings_; }
+  virtual std::string occasion() {
+    return "Just writing to say hi! Hope all is well with you.\n";
+  }
 
-private:
-  std::vector<std::string> settings_;
-};
-
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+  virtual std::string closing(const std::string &from) {
+    return "Sincerely,\n" + from + "\n";
+  }
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
-  }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
-    }
-    return realConfigFile_->getSettings();
+  virtual std::string generate(const std::string &to, const std::string &from) {
+    return intro(to) + occasion() + closing(from);
   }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
-
+class BirthdayCardTempate : public GreetingCardTemplate {
+protected:
+  std::string occasion() override {
+    return "Happy Birthday! Hope you have a wonderful day and lots of cake.\n";
+  }
 };
 
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
+class NewYearsCardTemplate : public GreetingCardTemplate {
+protected:
+  std::string intro(const std::string &to) override { return to + "!!!\n"; }
+  std::string occasion() override {
+    return "Happy Ney Years!! See you at the gym tomorrow!\n";
   }
-
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
-
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
-    }
-    return "invalid passcode";
-  }
-
 };
