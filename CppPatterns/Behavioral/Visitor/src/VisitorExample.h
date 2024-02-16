@@ -1,87 +1,76 @@
-#include <fstream>
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
-class ConfigFile {
+class Visitor {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual void handlePerson(const std::string &name, int age) = 0;
+  virtual void handleLandmark(const std::string &name,
+                              const std::string &cityName) = 0;
+  virtual void handleCar(const std::string &make, const std::string &model) = 0;
 };
 
-class RealConfigFile : public ConfigFile {
+class DatabaseVisitor : public Visitor {
 public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
-
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
+  virtual void handlePerson(const std::string &name, int age) override {
+    std::cout << "Writing person to database: " << name << " age: " << age
+              << std::endl;
   }
-  std::vector<std::string> getSettings() { return settings_; }
-
-private:
-  std::vector<std::string> settings_;
+  virtual void handleLandmark(const std::string &name,
+                              const std::string &cityName) override {
+    std::cout << "Writing landmark to database: " << name
+              << " city name: " << cityName << std::endl;
+  }
+  virtual void handleCar(const std::string &make,
+                         const std::string &model) override {
+    std::cout << "Writing car to database make: " << make << " model: " << model
+              << std::endl;
+  }
 };
 
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+class TextFileVisitor : public Visitor {
+public:
+  virtual void handlePerson(const std::string &name, int age) override {
+    std::cout << "Writing person to file: " << name << " age: " << age
+              << std::endl;
+  }
+  virtual void handleLandmark(const std::string &name,
+                              const std::string &cityName) override {
+    std::cout << "Writing landmark to file: " << name
+              << " city name: " << cityName << std::endl;
+  }
+  virtual void handleCar(const std::string &make,
+                         const std::string &model) override {
+    std::cout << "Writing car to file make: " << make << " model: " << model
+              << std::endl;
+  }
+};
+
+class Person {
+  std::string name_;
+  int age_;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
-  }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
-    }
-    return realConfigFile_->getSettings();
-  }
+  Person(const std::string &name, int age) : name_(name), age_(age) {}
+  void accept(Visitor *visitor) { visitor->handlePerson(name_, age_); }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
+class Landmark {
+  std::string name_;
+  std::string cityName_;
 
+public:
+  Landmark(const std::string &name, const std::string &cityName)
+      : name_(name), cityName_(cityName) {}
+
+  void accept(Visitor *visitor) { visitor->handleLandmark(name_, cityName_); }
 };
 
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
-  }
+class Car {
+  std::string make_;
+  std::string model_;
 
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
+public:
+  Car(const std::string &make, const std::string &model)
+      : make_(make), model_(model) {}
 
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
-    }
-    return "invalid passcode";
-  }
-
+  void accept(Visitor *visitor) { visitor->handleCar(make_, model_); }
 };
