@@ -1,87 +1,44 @@
-#include <fstream>
+#pragma once
+
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
-class ConfigFile {
+namespace Refactor {
+
+class GreetingStrategy {
 public:
-  virtual std::vector<std::string> getSettings() = 0;
-  virtual ~ConfigFile() = default;
+  virtual void greet(const std::string &name) = 0;
+  virtual ~GreetingStrategy() {}
 };
 
-class RealConfigFile : public ConfigFile {
+class FormalGreetingStrategy : public GreetingStrategy {
 public:
-  explicit RealConfigFile(const std::string &filename) {
-    std::cout << "RealConfigFile created" << std::endl;
-
-    std::ifstream file(filename);
-    std::string line;
-
-    while (getline(file, line)) {
-      settings_.push_back(line);
-    }
-    std::cout << settings_.size() << " settings loaded" << std::endl;
+  void greet(const std::string &name) override {
+    std::cout << "Good Morning " << name << ", how do you do?\n";
   }
-  std::vector<std::string> getSettings() { return settings_; }
-
-private:
-  std::vector<std::string> settings_;
 };
 
-// ConfigFile Proxy only implements the RealConfigFile the first time it is
-// accessed.
-class ConfigFileProxy : public ConfigFile {
-private:
-  std::string filename_;
-  std::unique_ptr<RealConfigFile> realConfigFile_;
+class NormalGreetingStrategy : public GreetingStrategy {
+public:
+  void greet(const std::string &name) override {
+    std::cout << "Hi " << name << ", how are you?\n";
+  }
+};
+
+class InformalGreetingStrategy : public GreetingStrategy {
+public:
+  void greet(const std::string &name) override {
+    std::cout << "Hey " << name << ", what's up?\n";
+  }
+};
+
+class Person {
+  GreetingStrategy *greetingStrategy_;
 
 public:
-  explicit ConfigFileProxy(const std::string &filename)
-      : filename_(filename), realConfigFile_(nullptr) {
-    std::cout << "ConfigFileProxy created" << std::endl;
-  }
-  std::vector<std::string> getSettings() override {
-    if (!realConfigFile_) {
-      realConfigFile_ = std::make_unique<RealConfigFile>(filename_);
-    }
-    return realConfigFile_->getSettings();
-  }
+  Person(GreetingStrategy *greetingStrategy)
+      : greetingStrategy_(greetingStrategy) {}
+  ~Person() { delete greetingStrategy_; }
+  void greet(const std::string &name) { greetingStrategy_->greet(name); }
 };
 
-// Protective Proxy Example
-class Storage {
-  public:
-  virtual const std::string getContents()=0;
-  virtual ~Storage() = default;
-
-};
-
-class SecureStorage : public Storage {
-  public:
-  explicit SecureStorage(const std::string &data) : contents_(data) {
-    std::cout << "Creating secure storage" << std::endl;
-  }
-
-  const std::string getContents() {return contents_;}
-  private:
-  std::string contents_;
-};
-
-class SecureStorageProxy : public Storage {
-  private: 
-  const std::string passcode_ = "1234";
-  std::unique_ptr<SecureStorage> secureStorage_;
-  public:
-  explicit SecureStorageProxy(const std::string &passcode, const std::string &data) : secureStorage_(passcode_ == passcode? new SecureStorage(data) : nullptr) {
-
-  }
-
-  const std::string getContents() {
-    if (secureStorage_) {
-      return secureStorage_->getContents();
-    }
-    return "invalid passcode";
-  }
-
-};
+} // namespace Refactor
