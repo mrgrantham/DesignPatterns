@@ -1,7 +1,5 @@
 #include <iostream>
 
-namespace Refactor {
-
 class Logger {
 public:
   virtual ~Logger() {}
@@ -20,6 +18,7 @@ class FileLogger : public Logger {
 
 public:
   FileLogger(const std::string &filePath) : filePath_(filePath) {}
+
   void log(const std::string &message) override {
     std::cout << "Logging message to file: " << filePath_ << ": " << message
               << "\n";
@@ -36,27 +35,27 @@ public:
   }
 };
 
-class NullLogger : public Logger {
-public:
-  void log(const std::string &message) override {}
-};
-
 class SomeTask {
   Logger *logger_;
 
 public:
   SomeTask(Logger *logger) : logger_(logger) {}
-  SomeTask() : logger_(new NullLogger()) {}
   ~SomeTask() { delete logger_; }
   void execute() {
     // do tasks
-    logger_->log("Did tasks");
+
+    if (logger_) {
+      logger_->log("Did tasks");
+    }
 
     // do other tasks
-    logger_->log("Did other tasks");
+    if (logger_) {
+      logger_->log("Did other tasks");
+    }
 
     // one last thing
-    logger_->log("Did one last thing");
+    if (logger_) {
+      logger_->log("Did one last thing");
+    }
   }
 };
-} // namespace Refactor
